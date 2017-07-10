@@ -1,5 +1,6 @@
 package me.satyabrat.sunshine_v2;
 
+import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -16,7 +17,9 @@ import android.view.MenuItem;
 import android.widget.Toast;
 
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import me.satyabrat.sunshine_v2.Adapter.WeatherAdapter;
@@ -41,6 +44,7 @@ public class MainActivity extends AppCompatActivity {
     private RecyclerView.LayoutManager mLayoutManager;
     private WeatherAdapter mAdapter;
     private List<String> weatherList;
+    private ProgressDialog pDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +54,45 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
+pDialog = new ProgressDialog(this);
+pDialog.setMessage("Fetching Data...");
+pDialog.setCancelable(false);
+        fetchWeather();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_settings) {
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    private String getReadableDateString(long time) {
+        // Because the API returns a unix timestamp (measured in seconds),
+        // it must be converted to milliseconds in order to be converted to valid date.
+        Date date = new Date(time * 1000);
+        SimpleDateFormat format = new SimpleDateFormat("E, MMM d");
+        return format.format(date).toString();
+    }
+
+    private void fetchWeather(){
+
+        pDialog.show();
 
         OkHttpClient okClient = new OkHttpClient.Builder()
                 .addInterceptor(
@@ -85,10 +128,13 @@ public class MainActivity extends AppCompatActivity {
 
                 for(me.satyabrat.sunshine_v2.Model.List list : result.list) {
                     for(Weather weather : list.weather){
-                        Log.i(TAG, weather.description);
-                        weatherList.add(weather.description);
-
-                    }}
+                        Log.i(TAG, weather.main);
+                        Log.i(TAG, getReadableDateString(list.dt));
+                        Log.i(TAG, "MinTemp = " + Double.toString(list.temp.min) + "  MaxTemp = " + Double.toString(list.temp.max));
+                        String weatherListItem =  getReadableDateString(list.dt) + " - " + weather.main + " - " + "MaxTemp: " + Double.toString(Math.round(list.temp.max)) + " MinTemp: " + Double.toString(Math.round(list.temp.min));
+                        weatherList.add(weatherListItem);
+                    }
+                }
 
                 mAdapter = new WeatherAdapter(weatherList);
                 mLayoutManager = new LinearLayoutManager(getApplicationContext());
@@ -96,10 +142,12 @@ public class MainActivity extends AppCompatActivity {
                 mRecyclerView.setItemAnimator(new DefaultItemAnimator());
                 mRecyclerView.setAdapter(mAdapter);
 
+                pDialog.hide();
             }
 
             @Override
             public void onFailure(Call<WeatherJson> call, Throwable t) {
+                pDialog.hide();
                 Toast.makeText(MainActivity.this, "Fetch Error :(", Toast.LENGTH_LONG).show();
             }
         });
@@ -108,31 +156,10 @@ public class MainActivity extends AppCompatActivity {
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                        .setAction("Action", null).show();
+                fetchWeather();
+                /*Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
+                        .setAction("Action", null).show();*/
             }
         });
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 }

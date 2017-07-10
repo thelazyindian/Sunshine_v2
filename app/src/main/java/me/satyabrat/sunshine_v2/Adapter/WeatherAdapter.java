@@ -7,8 +7,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 import java.util.List;
 
-import me.satyabrat.sunshine_v2.Model.Weather;
-import me.satyabrat.sunshine_v2.Model.WeatherJson;
 import me.satyabrat.sunshine_v2.R;
 
 public class WeatherAdapter extends RecyclerView.Adapter<WeatherAdapter.MyViewHolder> {
