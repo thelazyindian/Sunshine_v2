@@ -43,4 +43,5 @@ public class WeatherAdapter extends RecyclerView.Adapter<WeatherAdapter.MyViewHo
     public int getItemCount() {
         return weatherList.size();
     }
+
 }
