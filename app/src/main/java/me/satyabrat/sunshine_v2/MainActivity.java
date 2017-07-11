@@ -1,9 +1,11 @@
 package me.satyabrat.sunshine_v2;
 
 import android.app.ProgressDialog;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DefaultItemAnimator;
 import android.support.v7.widget.LinearLayoutManager;
@@ -39,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
 
     public static final String BASE_URL = "http://api.openweathermap.org/data/2.5/";
     private static final String TAG = "MainActivity";
-    String API_KEY="2daa104fa739b1de561007f5271089e5";
+    String API_KEY = "2daa104fa739b1de561007f5271089e5";
     private RecyclerView mRecyclerView;
     private RecyclerView.LayoutManager mLayoutManager;
     private WeatherAdapter mAdapter;
@@ -54,10 +56,10 @@ public class MainActivity extends AppCompatActivity {
         setSupportActionBar(toolbar);
 
         mRecyclerView = (RecyclerView) findViewById(R.id.recycler_view);
-pDialog = new ProgressDialog(this);
-pDialog.setMessage("Fetching Data...");
-pDialog.setCancelable(false);
-        fetchWeather();
+        pDialog = new ProgressDialog(this);
+        pDialog.setMessage("Fetching Data...");
+        pDialog.setCancelable(false);
+        updateWeather();
     }
 
     @Override
@@ -76,10 +78,23 @@ pDialog.setCancelable(false);
 
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_settings) {
+            startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void updateWeather() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        String location = prefs.getString(getString(R.string.pref_location_key), getString(R.string.pref_location_default));
+        fetchWeather(location);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        updateWeather();
     }
 
     private String getReadableDateString(long time) {
@@ -90,7 +105,30 @@ pDialog.setCancelable(false);
         return format.format(date).toString();
     }
 
-    private void fetchWeather(){
+    private String formatHighLows(double high, double low) {
+        // For presentation, assume the user doesn't care about tenths of a degree.
+        SharedPreferences sharedPrefs = PreferenceManager.getDefaultSharedPreferences(getBaseContext());
+        String unitType = sharedPrefs.getString(getString(R.string.pref_units_key), getString(R.string.pref_units_metric));
+        String highLowStr="";
+
+        if (unitType.equalsIgnoreCase(getString(R.string.pref_units_imperial))) {
+            high = (high * 1.8) + 32;
+            low = (low * 1.8) + 32;
+            long roundedHigh = Math.round(high);
+            long roundedLow = Math.round(low);
+            highLowStr = "MaxTemp: " + roundedHigh + "°F" + " MinTemp: " + roundedLow + "°F";
+        } else if (unitType.equalsIgnoreCase(getString(R.string.pref_units_metric))) {
+            long roundedHigh = Math.round(high);
+            long roundedLow = Math.round(low);
+            highLowStr = "MaxTemp: " + roundedHigh + "°C" + " MinTemp: " + roundedLow + "°C";
+        } else {
+            Log.i(TAG, "Unit Type Not Found=" + unitType);
+        }
+
+        return highLowStr;
+    }
+
+    private void fetchWeather(String location) {
 
         pDialog.show();
 
@@ -112,8 +150,8 @@ pDialog.setCancelable(false);
                 .addConverterFactory(GsonConverterFactory.create());
         Retrofit retrofit = builder.build();
 
-        WeatherAPIEndPointInterface service  = retrofit.create(WeatherAPIEndPointInterface.class);
-        Call<WeatherJson> call = service.getWeather("752001",
+        WeatherAPIEndPointInterface service = retrofit.create(WeatherAPIEndPointInterface.class);
+        Call<WeatherJson> call = service.getWeather(location,
                 "json",
                 "metric",
                 "7",
@@ -123,15 +161,12 @@ pDialog.setCancelable(false);
             @Override
             public void onResponse(Call<WeatherJson> call, retrofit2.Response<WeatherJson> response) {
                 Log.d(TAG, "on Response:" + response.code());
-                weatherList=new ArrayList<>();
-                WeatherJson result=response.body();
+                weatherList = new ArrayList<>();
+                WeatherJson result = response.body();
 
-                for(me.satyabrat.sunshine_v2.Model.List list : result.list) {
-                    for(Weather weather : list.weather){
-                        Log.i(TAG, weather.main);
-                        Log.i(TAG, getReadableDateString(list.dt));
-                        Log.i(TAG, "MinTemp = " + Double.toString(list.temp.min) + "  MaxTemp = " + Double.toString(list.temp.max));
-                        String weatherListItem =  getReadableDateString(list.dt) + " - " + weather.main + " - " + "MaxTemp: " + Double.toString(Math.round(list.temp.max)) + " MinTemp: " + Double.toString(Math.round(list.temp.min));
+                for (me.satyabrat.sunshine_v2.Model.List list : result.list) {
+                    for (Weather weather : list.weather) {
+                        String weatherListItem = getReadableDateString(list.dt) + " - " + weather.main + " - " + formatHighLows(list.temp.max, list.temp.min);
                         weatherList.add(weatherListItem);
                     }
                 }
@@ -156,7 +191,7 @@ pDialog.setCancelable(false);
         fab.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                fetchWeather();
+                updateWeather();
                 /*Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                         .setAction("Action", null).show();*/
             }
